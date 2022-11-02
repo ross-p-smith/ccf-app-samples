@@ -24,11 +24,11 @@ az network vnet subnet create \
     --vnet-name $vnetName \
     --resource-group $resourceGroup
 
-az network public-ip create \
-    --resource-group $resourceGroup \
-    --name "BastionIp" \
-    --sku Standard \
-    --location $location
+# az network public-ip create \
+#     --resource-group $resourceGroup \
+#     --name "BastionIp" \
+#     --sku Standard \
+#     --location $location
 
 az vm create \
     --resource-group $resourceGroup \
@@ -45,10 +45,10 @@ az vm create \
     --custom-data ccf.cloudinit \
     --output json
 
-az ssh config \
-    --resource-group $resourceGroup \
-    --name $vm_name \
-    --file ../ccf-sshconfig
+# az ssh config \
+#     --resource-group $resourceGroup \
+#     --name $vm_name \
+#     --file ../ccf-sshconfig
 
 az vm extension set \
     --publisher Microsoft.Azure.ActiveDirectory \
@@ -62,14 +62,47 @@ az role assignment create \
     --resource-group $resourceGroup \
     --assignee $signed_in_user
 
+subscriptionId=$(az account show --query id -o tsv)
+jitBody=$(jq -c . << JSON
+{
+  "name": "${vm_name}",
+  "type": "Microsoft.Security/locations/jitNetworkAccessPolicies@2020-01-01",
+  "id": "/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Security/locations/${location}/jitNetworkAccessPolicies/${vm_name}",
+  "location": "${location}",
+  "kind": "Basic",
+  "properties": {
+    "virtualMachines": [
+      {
+        "id": "/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Compute/virtualMachines/${vm_name}",
+        "ports": [
+          {
+            "number": 22,
+            "protocol": "TCP",
+            "allowedSourceAddressPrefix": "*",
+            "maxRequestAccessDuration": "PT3H"
+          }
+        ]
+      }
+    ]
+  }
+}
+JSON
+)
+
+# echo $jitBody
+# echo
+# az rest --method POST \
+#     --uri https://management.azure.com/subscriptions/${subscriptionId}/providers/Microsoft.Security/jitNetworkAccessPolicies/${vm_name}?api-version=2020-01-01 \
+#     --body "${jitBody}"
+# vmId="/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.Compute/virtualMachines/$vm_name"
+#az rest --uri https://management.azure.com/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Security/locations/${location}/jitNetworkAccessPolicies?api-version=2020-01-01
+#az rest --method delete --uri https://management.azure.com/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Security/locations/${location}/jitNetworkAccessPolicies/default?api-version=2020-01-01
+
 # az network bastion create \
 #     --name "ccf-bastion" \
 #     --public-ip-address "BastionIp" \
 #     --resource-group $resourceGroup \
 #     --vnet-name $vnetName
-
-# sub=$(az account show --query id -o tsv)
-# vmId="/subscriptions/$sub/resourceGroups/$resourceGroup/providers/Microsoft.Compute/virtualMachines/$vm_name"
 
 # az network bastion tunnel \
 #     --name "ccf-bastion" \
@@ -79,6 +112,6 @@ az role assignment create \
 #     --port 9090
 
 
-az ssh vm --resource-group $resourceGroup --name $vm_name
+# az ssh vm --resource-group $resourceGroup --name $vm_name
 
 # az ssh config --resource-group rg_rosmith1 --name ccf2 --file ../ccf-sshconfig
