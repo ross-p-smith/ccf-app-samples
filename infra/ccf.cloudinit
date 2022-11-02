@@ -1,5 +1,5 @@
 #cloud-config
-
+package_upgrade: true
 apt:
   sources:
     docker.list:
@@ -32,9 +32,9 @@ system_info:
   default_user:
     groups: [docker]
 
-runCmd:
+runcmd:
   - git clone https://github.com/microsoft/CCF
-  - ./CCF/getting_started/setup_vm/run.sh
+  - sudo -u ${user} ./CCF/getting_started/setup_vm/run.sh
   - git clone https://github.com/microsoft/ccf-app-template
   - cd ccf-app-template && docker build -t ccf-app-template:js-enclave -f docker/ccf_app_js.enclave .
 

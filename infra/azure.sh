@@ -1,7 +1,7 @@
-resourceGroup=rg_rosmith1
+resourceGroup=rg_rosmith
 location=westeurope
-vm_name=ccf4
-vm_dns=rosmith-ccf4
+vm_name=ccf5
+vm_dns=rosmith-ccf5
 vm_size=Standard_DC1s_v2
 vnetName=ccf
 subnetName=nodes
@@ -30,6 +30,8 @@ az network vnet subnet create \
 #     --sku Standard \
 #     --location $location
 
+# Automatically generates a ssh key if one is not present
+# https://learn.microsoft.com/en-us/azure/virtual-machines/linux/create-ssh-keys-detailed#generate-keys-automatically-during-deployment
 az vm create \
     --resource-group $resourceGroup \
     --name $vm_name \
@@ -45,23 +47,28 @@ az vm create \
     --custom-data ccf.cloudinit \
     --output json
 
+# https://learn.microsoft.com/en-us/cli/azure/ssh?view=azure-cli-latest#az-ssh-config
 # az ssh config \
 #     --resource-group $resourceGroup \
 #     --name $vm_name \
 #     --file ../ccf-sshconfig
 
+# https://learn.microsoft.com/en-us/azure/active-directory/devices/howto-vm-sign-in-azure-ad-linux
 az vm extension set \
     --publisher Microsoft.Azure.ActiveDirectory \
     --name AADSSHLoginForLinux \
     --resource-group $resourceGroup \
     --vm-name $vm_name
 
+# Make your AAD account an Admin on the machine (we don't actually use this!)
+# https://learn.microsoft.com/en-us/cli/azure/role/assignment?view=azure-cli-latest
 signed_in_user=$(az ad signed-in-user show --query id -o tsv)
 az role assignment create \
     --role "virtual machine administrator login" \
     --resource-group $resourceGroup \
     --assignee $signed_in_user
 
+# https://learn.microsoft.com/en-us/rest/api/defenderforcloud/jit-network-access-policies/create-or-update?tabs=HTTP
 subscriptionId=$(az account show --query id -o tsv)
 jitBody=$(jq -c . << JSON
 {
@@ -98,12 +105,14 @@ JSON
 #az rest --uri https://management.azure.com/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Security/locations/${location}/jitNetworkAccessPolicies?api-version=2020-01-01
 #az rest --method delete --uri https://management.azure.com/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Security/locations/${location}/jitNetworkAccessPolicies/default?api-version=2020-01-01
 
+# https://azure.microsoft.com/en-us/blog/customize-your-secure-vm-session-experience-with-native-client-support-on-azure-bastion/#:~:text=Meanwhile%2C%20the%20az%20network%20bastion%20tunnel%20command%20allows,using%20a%20custom%20client%20and%20the%20specified%20port.
 # az network bastion create \
 #     --name "ccf-bastion" \
 #     --public-ip-address "BastionIp" \
 #     --resource-group $resourceGroup \
 #     --vnet-name $vnetName
 
+# https://learn.microsoft.com/en-us/azure/bastion/connect-native-client-windows#connect-tunnel
 # az network bastion tunnel \
 #     --name "ccf-bastion" \
 #     --resource-group $resourceGroup \
