@@ -1,16 +1,40 @@
 #!/bin/bash
+set -euox pipefail
 
-# Run prepare_demo.sh in another terminal before running this script
+# Run `make start-host` in another terminal before running this script
 
 
 cd workspace/sandbox_common
-cp ../../certs_for_demo/* ./
+
+create_certificate(){
+    local certName="$1"
+    local certFile="${1}_cert.pem"
+    local setUserFile="set_${1}.json"
+    /opt/ccf/bin/keygenerator.sh --name $certName
+
+    cert=$(< $certFile sed '$!G' | paste -sd '\\n' -)
+
+    cat <<JSON > $setUserFile
+{
+  "actions": [
+    {
+      "name": "set_user",
+      "args": {
+        "cert": "${cert}"
+      }
+    }
+  ]
+}
+JSON
+}
+
+create_certificate user0
+create_certificate user1
+
 cp ../../vote/* ./
 
 user0_id=$(openssl x509 -in "user0_cert.pem" -noout -fingerprint -sha256 | cut -d "=" -f 2 | sed 's/://g' | awk '{print tolower($0)}')
 user1_id=$(openssl x509 -in "user1_cert.pem" -noout -fingerprint -sha256 | cut -d "=" -f 2 | sed 's/://g' | awk '{print tolower($0)}')
-
-set -x
 
 # Add users
 
