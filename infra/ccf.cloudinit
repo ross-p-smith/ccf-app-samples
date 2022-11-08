@@ -1,4 +1,5 @@
 #cloud-config
+package_update: true
 package_upgrade: true
 apt:
   sources:
@@ -15,7 +16,8 @@ packages:
   - docker-ce
   - docker-ce-cli
   - containerd.io
-
+  - git
+  - jq
 
 # Enable ipv4 forwarding, required on CIS hardened machines
 write_files:
@@ -33,8 +35,8 @@ system_info:
     groups: [docker]
 
 runcmd:
-  - git clone https://github.com/microsoft/CCF
-  - sudo -u ${user} ./CCF/getting_started/setup_vm/run.sh
-  - git clone https://github.com/microsoft/ccf-app-template
-  - cd ccf-app-template && docker build -t ccf-app-template:js-enclave -f docker/ccf_app_js.enclave .
-
+  - cd /home/azureuser && git clone https://github.com/microsoft/CCF.git ccf-install -b release/2.x
+  - sudo -u azureuser /home/azureuser/ccf-install/getting_started/setup_vm/run.sh /home/azureuser/ccf-install/getting_started/setup_vm/app-run.yml
+  - export CCF_VERSION=$(curl -ILs -o /dev/null -w %{url_effective} https://github.com/microsoft/CCF/releases/latest | sed 's/^.*ccf-//')
+  - wget https://github.com/microsoft/CCF/releases/download/ccf-${CCF_VERSION}/ccf_${CCF_VERSION}_amd64.deb
+  - apt install /home/azureuser/ccf_${CCF_VERSION}_amd64.deb -y
